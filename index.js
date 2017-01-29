@@ -1,5 +1,9 @@
 'use strict';
 
+var accountSid = 'ACf8c71188ef7f95059ac67cbe5820ebe0';
+var authToken = "6284ff20f4827201e82e29f029da6718";
+
+var twilioClient = require('twilio')(accountSid, authToken);
 var crypto = require('crypto');
 var https = require('https');
 var url = require('url');
@@ -194,20 +198,26 @@ function getWelcomeResponse(callback) {
     // If we wanted to initialize the session to have some attributes we could add those here.
     const sessionAttributes = {};
     const cardTitle = 'Welcome';
-    const speechOutput = 'Welcome to Diagnose-Me. List your symptoms separated by and. When finished, say diagnose me. But first, what is your age and gender?';
+    const speechOutput = 'Welcome to Diagnose-Me. Is this an emergency?';
+
+
+
+    //First, give me your age and gender.  Then, list your symptoms and when done, say "diagnose me".';
     // If the user either does not reply to the welcome message or says something that is not
     // understood, they will be prompted again with this text.
     const repromptText = 'Please tell me a symptom by saying, ' +
         'I have some symptom or I am feeling something.';
     const shouldEndSession = false;
 
-    callback(sessionAttributes,
+    callback({
+        Question: "emergency"
+    },
         buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
 }
 
-function handleSessionEndRequest(callback) {
+function handleSessionEndRequest(callback, sayThanks) {
     const cardTitle = 'Session Ended';
-    const speechOutput = 'Thank you for using Diagnose Me. Have a nice day!';
+    const speechOutput = sayThanks ? 'Thank you for using Diagnose Me. Have a nice day!' : 'Have a nice day!';
     // Setting this to true ends the session and exits the skill.
     const shouldEndSession = true;
 
@@ -308,7 +318,7 @@ function removeSymptomFromSession(intent, session, callback){
             speechOutput = symptomToRemove + " is not one of your symptoms.";
         }
 
-        for (var i = 0; i < listOfSymptoms.length; i++) {//speak list to user
+        for (var i = 0; i < listOfSymptoms.length; i++) { //Speak list to user
             if(i == 0 && listOfSymptoms.length > 1){
                 speechOutput += " Your symptoms are: " + listOfSymptoms[i] + ", ";
             } else if (listOfSymptoms.length == 1){
@@ -477,7 +487,6 @@ function diagnose(intent, session, callback){
                   }
               }
           }
-
           speechOutput += " Thank you for using Diagnose-Me. Would you like to close Diagnose-Me?";
           callback({
             Symptoms: listOfSymptoms,
@@ -526,14 +535,16 @@ function handleYesIntent(intent, session, callback) {
     if (question == "suggest") {
         speechOutput = "Please list the symptoms that match. Starts with 'I have ...'";
     } else if (question == "close") {
-        handleSessionEndRequest(callback);
+        handleSessionEndRequest(callback, false);
         return;
+    } else if (question == "emergency") {
+    speechOutput = "Say: text 'some number' to send an emergency text.";
     }
 
      callback({
         Symptoms: listOfSymptoms,
         Age: userAge,
-        Gender: userGender
+        Gender: userGender,
      }, buildSpeechletResponse(intent.name, speechOutput, null, false));
 
 }
@@ -557,6 +568,8 @@ function handleNoIntent(intent, session, callback) {
     } else if (question == "close") {
       getWelcomeResponse(callback);
       return;
+    } else if (question == "emergency") {
+        speechOutput = "Great! Let's get started. First, please say your age and gender.";
     }
 
      callback({
@@ -583,6 +596,10 @@ function prescribeMedication(illness, age, listOfSymptoms){//finish writing
 
 function getMedicationInfo(medication, age){
     var adult = (age >= 12);
+    //let meds = ['tylenol','advil','robitussin','tums','zantac','miralax', 'claritin'];
+    /*if (meds.indexOf(medication) != -1){
+        return "Invalid medication or age.";
+    }*/
 
     switch(medication.toLowerCase()){
         case "tylenol":
@@ -650,9 +667,10 @@ function getMedicationInfo(medication, age){
                 return "none. Consult a doctor before taking claritin at this age.";
             }
             break;
+        default:
+            return "Invalid medicine or age.";
+            break;
     }
-
-    return "Invalid medicine or age.";
 }
 
 
@@ -661,49 +679,61 @@ function readMedFacts(intent, session, callback){//intent "tell me about tylenol
     var userGender = "";
     let speechOutput = "";
     let listOfSymptoms = [];
+
     if (typeof session.attributes == "object") {
         userAge = session.attributes.Age || -1;
         userGender = session.attributes.Gender || "";
         listOfSymptoms = session.attributes.Symptoms || [];
     }
-     if (userAge == -1 && userGender == ""){
+
+    if (userAge == -1 && userGender == ""){
       speechOutput = "Please say your age and gender.";
       callback({
          Symptoms: listOfSymptoms,
          Age: userAge,
          Gender: userGender
       }, buildSpeechletResponse(intent.name, speechOutput, null, shouldEndSession));
-    }else{
+    } else{
+        let theMed = intent.slots.Med ? intent.slots.Med.value.toLowerCase() : "";
 
-    let meds = ['tylenol','advil','robitussin','tums','zantac','miralax', 'claritin'];
-    let theMed = intent.slots.Med ? intent.slots.Med.value.toLowerCase() : "";
-        speechOutput = "";
-
-    if (meds.indexOf(theMed) != -1){
         speechOutput = getMedicationInfo(theMed, userAge);
     }
 
-    }
-        callback({
+
+    callback({
         Symptoms: listOfSymptoms,
         Age: userAge,
         Gender: userGender
     }, buildSpeechletResponse(intent.name, speechOutput, null, shouldEndSession));
 }
 
-
 function twilioIntent(intent, session, callback){
     var userAge = -1;
     var userGender = "";
     let speechOutput = "";
     let listOfSymptoms = [];
-    let num = intent.slots.Number.value;
-    speechOutput += num;
+    let num = intent.slots.Number.value + '';
+    if (/^[1-9][0-9]{9}$/.test(num)) {
+      twilioClient.messages.create({
+          body: "This is an emergency. Please send help.",
+          to: "+1" + num,
+          from: "+17325322083"
+      }, function(err, sms) {
+          speechOutput = "message sent.";
     callback({
-        Symptoms: listOfSymptoms,
-        Age: userAge,
-        Gender: userGender
-    }, buildSpeechletResponse(intent.name, speechOutput, null, shouldEndSession));
+          Symptoms: listOfSymptoms,
+          Age: userAge,
+          Gender: userGender
+      }, buildSpeechletResponse(intent.name, speechOutput, null, true));
+      });
+    } else {
+      speechOutput += "Sorry, " + num + " is not a valid number.";
+      callback({
+          Symptoms: listOfSymptoms,
+          Age: userAge,
+          Gender: userGender
+      }, buildSpeechletResponse(intent.name, speechOutput, null, false));
+    }
 }
 
 // --------------- Events -----------------------
@@ -757,7 +787,7 @@ function onIntent(intentRequest, session, callback) {
     } else if (intentName == 'AMAZON.HelpIntent') {
          getWelcomeResponse(callback);
     } else if (intentName == 'AMAZON.StopIntent' || intentName == 'AMAZON.CancelIntent') {
-        handleSessionEndRequest(callback);
+        handleSessionEndRequest(callback, true);
     } else {
         handleInvalidInput(intent, session, callback);
     }
@@ -779,16 +809,6 @@ function onSessionEnded(sessionEndedRequest, session) {
 exports.handler = (event, context, callback) => {
     try {
         console.log(`event.session.application.applicationId=${event.session.application.applicationId}`);
-
-        /**
-         * Uncomment this if statement and populate with your skill's application ID to
-         * prevent someone else from configuring a skill that sends requests to this function.
-         */
-        /*
-        if (event.session.application.applicationId !== 'amzn1.echo-sdk-ams.app.[unique-value-here]') {
-             callback('Invalid Application ID');
-        }
-        */
 
         if (event.session.new) {
             onSessionStarted({ requestId: event.request.requestId }, event.session);
