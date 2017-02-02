@@ -199,9 +199,9 @@ function getWelcomeResponse(callback) {
     const sessionAttributes = {};
     const cardTitle = 'Welcome';
     const speechOutput = 'Welcome to Diagnose-Me. Is this an emergency?';
-
-
-
+    
+    
+    
     //First, give me your age and gender.  Then, list your symptoms and when done, say "diagnose me".';
     // If the user either does not reply to the welcome message or says something that is not
     // understood, they will be prompted again with this text.
