@@ -194,7 +194,7 @@ function getWelcomeResponse(callback) {
     // If we wanted to initialize the session to have some attributes we could add those here.
     const sessionAttributes = {};
     const cardTitle = 'Welcome';
-    const speechOutput = 'Welcome to Diagnose-Me. Is this an emergency?';
+    const speechOutput = 'Welcome to Diagnose-Me.';
 
 
 
@@ -592,10 +592,6 @@ function prescribeMedication(illness, age, listOfSymptoms){//finish writing
 
 function getMedicationInfo(medication, age){
     var adult = (age >= 12);
-    //let meds = ['tylenol','advil','robitussin','tums','zantac','miralax', 'claritin'];
-    /*if (meds.indexOf(medication) != -1){
-        return "Invalid medication or age.";
-    }*/
 
     switch(medication.toLowerCase()){
         case "tylenol":
