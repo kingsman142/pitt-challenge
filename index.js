@@ -1,9 +1,5 @@
 'use strict';
 
-var accountSid = 'ACf8c71188ef7f95059ac67cbe5820ebe0';
-var authToken = "6284ff20f4827201e82e29f029da6718";
-
-var twilioClient = require('twilio')(accountSid, authToken);
 var crypto = require('crypto');
 var https = require('https');
 var url = require('url');
@@ -199,9 +195,9 @@ function getWelcomeResponse(callback) {
     const sessionAttributes = {};
     const cardTitle = 'Welcome';
     const speechOutput = 'Welcome to Diagnose-Me. Is this an emergency?';
-    
-    
-    
+
+
+
     //First, give me your age and gender.  Then, list your symptoms and when done, say "diagnose me".';
     // If the user either does not reply to the welcome message or says something that is not
     // understood, they will be prompted again with this text.
@@ -707,35 +703,6 @@ function readMedFacts(intent, session, callback){//intent "tell me about tylenol
     }, buildSpeechletResponse(intent.name, speechOutput, null, shouldEndSession));
 }
 
-function twilioIntent(intent, session, callback){
-    var userAge = -1;
-    var userGender = "";
-    let speechOutput = "";
-    let listOfSymptoms = [];
-    let num = intent.slots.Number.value + '';
-    if (/^[1-9][0-9]{9}$/.test(num)) {
-      twilioClient.messages.create({
-          body: "This is an emergency. Please send help.",
-          to: "+1" + num,
-          from: "+17325322083"
-      }, function(err, sms) {
-          speechOutput = "message sent.";
-    callback({
-          Symptoms: listOfSymptoms,
-          Age: userAge,
-          Gender: userGender
-      }, buildSpeechletResponse(intent.name, speechOutput, null, true));
-      });
-    } else {
-      speechOutput += "Sorry, " + num + " is not a valid number.";
-      callback({
-          Symptoms: listOfSymptoms,
-          Age: userAge,
-          Gender: userGender
-      }, buildSpeechletResponse(intent.name, speechOutput, null, false));
-    }
-}
-
 // --------------- Events -----------------------
 
 /**
@@ -782,8 +749,6 @@ function onIntent(intentRequest, session, callback) {
          handleYesIntent(intent, session, callback);
     } else if (intentName == 'AMAZON.NoIntent') {
          handleNoIntent(intent, session, callback);
-    } else if (intentName == 'twilio'){
-         twilioIntent(intent, session, callback);
     } else if (intentName == 'AMAZON.HelpIntent') {
          getWelcomeResponse(callback);
     } else if (intentName == 'AMAZON.StopIntent' || intentName == 'AMAZON.CancelIntent') {
